@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .chart-container{
+            margin: auto auto;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+        svg{
+            overflow: visible;
+        }
+        /* h1 {
+            font-family:'Arial', Times, serif;
+            font-weight: lighter;
+            fill: black;
+            text-anchor: end;
+            position: absolute;
+            font-size: 35px;
+        }
+
+        h2 {
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+            font-weight: lighter;
+            fill: black;
+            text-anchor: end;
+            position: absolute;
+            font-weight: lighter;
+            font-size: 20px;
+        } */
+
+        .pop-up {
+            position: absolute; 
+            border: 1px solid black;
+            border-radius: 1px;
+            line-height: 1.2;
+            width: 200px;
+            pointer-events: none;
+            background-color: white;
+            padding: 10px;
+        }
+
+        .annotation {
+            font-size: 15px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-style: italic;
+            font-weight: 200;
+
+        }    
+    </style>
+</head>
+
+<body>
+    <div>
+    <h1 style="font-weight: lighter; font-family: Arial, Helvetica, sans-serif; font-size: 30px; color: #3db0bf">
+        Inequality has Generally Dropped Between 1980 and 2019 in LATAM
+    </h1>
+
+    <h2 style="font-weight: lighter; font-family: Arial, Helvetica, sans-serif; font-size: 16px;">
+        Although there are few exceptions like Paraguay and Costa Rica,  
+    
+    </h2>
+
+    <h3 style="font-weight: lighter; font-family: Arial, Helvetica, sans-serif; font-size: 16px;">
+        increases in GDP per Capita in Latin America are commonly associated with drops in inequality measured by the Gini Index.
+    </h3>
+    </div>
+    <img src="arrow_anotation.svg" style="width:300px;height:75px;margin-left:-40px;">
+
+    <div class = "chart-container grid-vfc">
+        <svg width="1250px" height="800px"></svg>
+        <div class="pop-up">  
+    </div> 
+</body>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+    let width = 1250;
+    let height = 800;
+    let margin = ({top: 20, right: 20, bottom: 30, left: 30});
+    let svg = d3.select("body").select("svg")
+        .style("overflow", "visible");
+        
+    let data = d3.csv("country_data_gdp.csv").then(function (data) {
+    
+        
+        data.forEach(d => {
+            d.gini_past = + d.gini_past;
+            d.gini_present = + d.gini_present;
+            // d.log_pop_past = + d.log_pop_past;
+            // d.log_pop_present = + d.log_pop_present;
+            // d.pop_past = + d.pop_past;
+            // d.pop_present = + d.pop_present;
+            d.year_past = +d.year_past;
+            d.year_present = +d.year_present
+            d.gdp_pc_past = +d.gdp_pc_past
+            d.gdp_pc_present = +d.gdp_pc_present
+        })
+        console.log({data})
+
+        const rows = data.map( d=> "arrow_" + d.country);
+        console.log({rows})
+
+        const gradientids = data.map( d => "gradient_" + d.country);
+        console.log({gradientids})
+        
+        x = d3.scaleLinear()
+            .domain(padLog(d3.extent(data.flatMap(d => [d.gdp_pc_past, d.gdp_pc_present])), 0.1))
+            .rangeRound([margin.left, width - margin.right])
+        console.log({x})
+
+        y = d3.scaleLinear()
+            .domain(padLinear(d3.extent(data.flatMap(d => [d.gini_past, d.gini_present])), 0.1))
+            .rangeRound([height - margin.bottom, margin.top])
+        console.log({y})
+
+        function padLinear([x0, x1], k) {
+            const dx = (x1 - x0) * k / 2;
+            return [x0 - dx, x1 + dx];
+        }
+
+        function padLog(x, k) {
+            return padLinear(x.map(Math.log), k).map(Math.exp);
+        }
+        
+        endColor = d3.schemeCategory10[3]
+        console.log({endColor}) 
+
+        startColor = d3.schemeCategory10[1]
+        console.log({startColor})
+
+        function arc(x1, y1, x2, y2) {
+            const r = Math.hypot(x1 - x2, y1 - y2) * 2;
+            return `
+            M${x1},${y1}
+            A${r},${r} 0,0,1 ${x2},${y2}
+            `;
+        }
+
+        grid = g => g
+            .attr("stroke", "currentColor")
+            .attr("stroke-opacity", 0.1)
+            .call(g => g.append("g")
+            .selectAll("line")
+            .data(x.ticks())
+            .join("line")
+                .attr("x1", d => 0.5 + x(d))
+                .attr("x2", d => 0.5 + x(d))
+                .attr("y1", margin.top)
+                .attr("y2", height - margin.bottom))
+            .call(g => g.append("g")
+            .selectAll("line")
+            .data(y.ticks())
+            .join("line")
+                .attr("y1", d => 0.5 + y(d))
+                .attr("y2", d => 0.5 + y(d))
+                .attr("x1", margin.left)
+                .attr("x2", width - margin.right));
+
+
+        xAxis = g => g
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+            .call(d3.axisBottom(x).ticks(width / 80, ".1s"))
+            .call(g => g.select(".domain").remove())
+            .call(g => g.append("text")
+                .attr("x", width)
+                .attr("y", margin.bottom - 4)
+                .attr("fill", "currentColor")
+                .attr("text-anchor", "end")
+                .text("GDP per Capita →"))
+
+        yAxis = g => g
+            .attr("transform", `translate(${margin.left},0)`)
+            .call(d3.axisLeft(y))
+            .call(g => g.select(".domain").remove())
+            .call(g => g.append("text")
+                .attr("x", -margin.left)
+                .attr("y", 10)
+                .attr("fill", "currentColor")
+                .attr("text-anchor", "start")
+                .text("↑ Gini Index "))
+
+
+        svg.append("g")
+            .call(grid);
+
+        svg.append("g")
+            .call(xAxis);
+
+        svg.append("g")
+            .call(yAxis);
+
+        let lines = svg.append("g")
+            .attr("fill", "none")
+            .selectAll("path")
+            .data(data)
+            .join("path")
+            // .attr("stroke", (d, i) => gradientIds[i])
+            .attr("stroke", "steelblue")
+            // .attr("marker-end", `"#triangle")
+            .attr("d", d => arc(x(d.gdp_pc_past), y(d.gini_past), x(d.gdp_pc_present), y(d.gini_present)))
+            
+        svg.append("g")
+            .attr("fill", "black")
+            .selectAll("circle")
+            .data(data)
+            .join("circle")
+            .attr("r", 1.75)
+            .attr("cx", d => x(d.gdp_pc_past))
+            .attr("cy", d => y(d.gini_past));
+
+
+        svg.append("g")
+            .attr("fill", "currentColor")
+            .attr("text-anchor", "middle")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", 10)
+            .attr("stroke-linejoin", "round")
+            .attr("stroke-width", 4)
+            .selectAll("text")
+            .data(data)
+            .join("text")
+            .attr("dy", d => d.gini_past > d.gini_present ? "1.2em" : "-0.5em")
+            .attr("x", d => x(d.gdp_pc_present))
+            .attr("y", d => y(d.gini_present))
+            .text(d => d.country)
+            .call(text => text.clone(true))
+            .attr("fill", "none")
+            .attr("stroke", "white");
+        
+        // const arrowId = DOM.uid("arrow");
+        // const gradientIds = data.map(() => DOM.uid("gradient"));
+        // console.log({arrowId})
+
+        // svg.append("defs")
+        //     .append("marker")
+        //     .attr("id", arrowId.id)
+        //     .attr("markerHeight", 10)
+        //     .attr("markerWidth", 10)
+        //     .attr("refX", 5)
+        //     .attr("refY", 2.5)
+        //     .attr("orient", "auto")
+        //     .append("path")
+        //     .attr("fill", endColor)
+        //     .attr("d", "M0,0v5l7,-2.5Z");
+
+        svg.append("defs")
+            .append("marker")
+            .attr("id", rows)
+            .attr("markerHeight", 10)
+            .attr("markerWidth", 10)
+            .attr("refX", 5)
+            .attr("refY", 2.5)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("fill", endColor)
+            .attr("d", "M0,0v5l7,-2.5Z");
+
+        console.log({svg})
+        
+        svg.append("defs")
+            .selectAll("linearGradient")
+            .data(data)
+            .join("linearGradient")
+            .attr("id", d =>d.country)
+            .attr("gradientUnits", "userSpaceOnUse")
+            .attr("x1", d => x(d.gdp_pc_past))
+            .attr("x2", d => x(d.gdp_pc_present))
+            .attr("y1", d => y(d.gini_past))
+            .attr("y2", d => y(d.gini_present))
+            .call(g => g.append("stop").attr("stop-color", startColor).attr("stop-opacity", 0.5))
+            .call(g => g.append("stop").attr("offset", "100%").attr("stop-color", endColor));
+
+        let popup = d3.select(".pop-up");
+
+        lines.on("mouseover", (event, d) => {
+
+            svg.select(d.country)
+                .style("stroke", "black")
+                .style("stroke-width", 2)
+                .style("fill", "yellow")
+                .style("fill-opacity", 1)
+                .raise()
+
+            let lang = "In " + d.country + ", the Gini Index was " + d.gini_past + " by the year " + d.year_past + ", and has changed to " + d.gini_present + " by the year " + d.year_present
+
+            popup
+                .style("opacity", 1)
+                .style("left", (event.x - 100) + "px")
+                .style("top", (event.y - 150) + "px")
+                .html(lang)
+        })
+
+        lines.on("mouseout", (event, d) => {
+
+            popup
+                .style("opacity", 0)
+
+        })
+
+    })
+</script>
